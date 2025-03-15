@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat - With Personas</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+        
+        .chat-container {
+            width: 80%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background-color: #6e57e0;
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .version-selector {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .version-selector a {
+            color: white;
+            text-decoration: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        
+        .version-selector a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+        }
+        
+        .model-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .model-badge, .persona-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            height: 400px;
+            background-color: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message-content {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+        }
+        
+        .user {
+            align-items: flex-end;
+        }
+        
+        .user .message-content {
+            background-color: #6e57e0;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .assistant {
+            align-items: flex-start;
+        }
+        
+        .assistant .message-content {
+            background-color: #e9e9eb;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .system {
+            align-items: center;
+        }
+        
+        .system .message-content {
+            background-color: #ffd87c;
+            color: #333;
+            font-size: 0.85rem;
+            padding: 5px 10px;
+            border-radius: 12px;
+        }
+        
+        .role-label {
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: #666;
+            font-weight: 600;
+        }
+        
+        .chat-controls {
+            display: flex;
+            padding: 10px 15px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #f8f8f8;
+        }
+        
+        .persona-selector {
+            display: flex;
+            align-items: center;
+        }
+        
+        .persona-selector label {
+            margin-right: 8px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        
+        #persona-select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+            background-color: white;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            font-size: 0.95rem;
+        }
+        
+        #send-button {
+            background-color: #6e57e0;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 0 20px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        #send-button:hover {
+            background-color: #5a46c7;
+        }
+        
+        .version-tag {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #ff9800;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="version-tag">V2: With Personas</div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <span>Ollama Chat</span>
+            <div class="version-selector">
+                {% for v in versions %}
+                    <a href="/switch/{{ v }}" class="{% if v == current_version %}active{% endif %}">{{ v }}</a>
+                {% endfor %}
+            </div>
+            <div class="model-info">
+                <span class="model-badge">mistral</span>
+                <span class="persona-badge" id="current-persona">default</span>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="message assistant">
+                <div class="role-label">Assistant</div>
+                <div class="message-content">
+                    Hello! I'm your AI assistant powered by Ollama running locally on your machine. How can I help you today?
+                </div>
+            </div>
+        </div>
+        <div class="chat-controls">
+            <div class="persona-selector">
+                <label for="persona-select">Assistant Persona:</label>
+                <select id="persona-select">
+                    {% for persona in personas %}
+                        <option value="{{ persona }}">{{ persona|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="Type your message..." autofocus>
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const chatMessages = document.getElementById('chat-messages');
+            const personaSelect = document.getElementById('persona-select');
+            const currentPersonaBadge = document.getElementById('current-persona');
+            
+            // Store chat history
+            let chatHistory = [
+                {
+                    role: "Assistant",
+                    content: "Hello! I'm your AI assistant powered by Ollama running locally on your machine. How can I help you today?"
+                }
+            ];
+            
+            // Function to add a message to the chat
+            function addMessage(content, role) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role.toLowerCase()}`;
+                
+                const roleLabel = document.createElement('div');
+                roleLabel.className = 'role-label';
+                roleLabel.textContent = role;
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.textContent = content;
+                
+                messageDiv.appendChild(roleLabel);
+                messageDiv.appendChild(messageContent);
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Add to history (except system messages)
+                if (role.toLowerCase() !== 'system') {
+                    chatHistory.push({
+                        role: role,
+                        content: content
+                    });
+                }
+            }
+            
+            // Update the persona badge when changed
+            personaSelect.addEventListener('change', function() {
+                const newPersona = personaSelect.value;
+                currentPersonaBadge.textContent = newPersona;
+                
+                // Add a system message to indicate the persona change
+                addMessage(`Switching to ${newPersona} persona`, 'System');
+            });
+            
+            // Function to send a message to the backend
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                
+                if (message === '') return;
+                
+                // Add user message to chat
+                addMessage(message, 'User');
+                
+                // Clear input
+                messageInput.value = '';
+                
+                // Show loading state
+                const loadingMessage = "Thinking...";
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'message assistant';
+                loadingDiv.id = 'loading-message';
+                
+                const loadingRoleLabel = document.createElement('div');
+                loadingRoleLabel.className = 'role-label';
+                loadingRoleLabel.textContent = 'Assistant';
+                
+                const loadingContent = document.createElement('div');
+                loadingContent.className = 'message-content';
+                loadingContent.textContent = loadingMessage;
+                
+                loadingDiv.appendChild(loadingRoleLabel);
+                loadingDiv.appendChild(loadingContent);
+                
+                chatMessages.appendChild(loadingDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                try {
+                    // Send request to backend
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            history: chatHistory,
+                            persona: personaSelect.value,
+                            model: 'mistral'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Remove loading message
+                    document.getElementById('loading-message').remove();
+                    
+                    // Add AI response to chat
+                    addMessage(data.response, 'Assistant');
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    
+                    // Remove loading message
+                    document.getElementById('loading-message').remove();
+                    
+                    // Add error message
+                    addMessage('Sorry, there was an error processing your request.', 'Assistant');
+                }
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ollama Chat</title>
+    <title>Ollama Chat - Full Featured</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -36,6 +36,25 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        
+        .version-selector {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .version-selector a {
+            color: white;
+            text-decoration: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        
+        .version-selector a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: bold;
         }
         
         .model-info {
@@ -170,54 +189,39 @@
             background-color: #5a46c7;
         }
         
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #666;
+        .version-tag {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
         }
         
-        .typing-animation {
-            display: flex;
-            margin-left: 8px;
-        }
-        
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            background-color: #666;
-            border-radius: 50%;
-            margin: 0 2px;
-            animation: typing-dot 1.4s infinite ease-in-out both;
-        }
-        
-        .typing-dot:nth-child(1) {
-            animation-delay: 0s;
-        }
-        
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-        
-        @keyframes typing-dot {
-            0%, 80%, 100% { 
-                transform: scale(0);
-            } 
-            40% { 
-                transform: scale(1.0);
-            }
+        .feature-badge {
+            background-color: #e91e63;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+            vertical-align: middle;
         }
     </style>
 </head>
 <body>
+    <div class="version-tag">V3: Full Featured</div>
     <div class="chat-container">
         <div class="chat-header">
             <span>Ollama Chat</span>
+            <div class="version-selector">
+                {% for v in versions %}
+                    <a href="/switch/{{ v }}" class="{% if v == current_version %}active{% endif %}">{{ v }}</a>
+                {% endfor %}
+            </div>
             <div class="model-info">
                 <span class="model-badge" id="current-model">mistral</span>
                 <span class="persona-badge" id="current-persona">default</span>
@@ -241,7 +245,7 @@
                 </select>
             </div>
             <div class="selector model-selector">
-                <label for="model-select">Model:</label>
+                <label for="model-select">Model: <span class="feature-badge">NEW</span></label>
                 <select id="model-select">
                     {% for model in models %}
                         <option value="{{ model }}">{{ model }}</option>
@@ -305,46 +309,6 @@
                 }
             }
             
-            // Function to show typing indicator
-            function showTypingIndicator() {
-                const typingDiv = document.createElement('div');
-                typingDiv.className = 'message assistant typing-indicator';
-                typingDiv.id = 'typing-indicator';
-                
-                const roleLabel = document.createElement('div');
-                roleLabel.className = 'role-label';
-                roleLabel.textContent = 'Assistant';
-                
-                const typingContent = document.createElement('div');
-                typingContent.className = 'message-content';
-                typingContent.textContent = 'Typing';
-                
-                const typingAnimation = document.createElement('div');
-                typingAnimation.className = 'typing-animation';
-                
-                for (let i = 0; i < 3; i++) {
-                    const dot = document.createElement('div');
-                    dot.className = 'typing-dot';
-                    typingAnimation.appendChild(dot);
-                }
-                
-                typingContent.appendChild(typingAnimation);
-                
-                typingDiv.appendChild(roleLabel);
-                typingDiv.appendChild(typingContent);
-                
-                chatMessages.appendChild(typingDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-            
-            // Function to hide typing indicator
-            function hideTypingIndicator() {
-                const typingIndicator = document.getElementById('typing-indicator');
-                if (typingIndicator) {
-                    typingIndicator.remove();
-                }
-            }
-            
             // Update the persona badge when changed
             personaSelect.addEventListener('change', function() {
                 const newPersona = personaSelect.value;
@@ -375,8 +339,25 @@
                 // Clear input
                 messageInput.value = '';
                 
-                // Show typing indicator
-                showTypingIndicator();
+                // Show loading state
+                const loadingMessage = "Thinking...";
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'message assistant';
+                loadingDiv.id = 'loading-message';
+                
+                const loadingRoleLabel = document.createElement('div');
+                loadingRoleLabel.className = 'role-label';
+                loadingRoleLabel.textContent = 'Assistant';
+                
+                const loadingContent = document.createElement('div');
+                loadingContent.className = 'message-content';
+                loadingContent.textContent = loadingMessage;
+                
+                loadingDiv.appendChild(loadingRoleLabel);
+                loadingDiv.appendChild(loadingContent);
+                
+                chatMessages.appendChild(loadingDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
                 
                 try {
                     // Send request to backend
@@ -395,8 +376,8 @@
                     
                     const data = await response.json();
                     
-                    // Hide typing indicator
-                    hideTypingIndicator();
+                    // Remove loading message
+                    document.getElementById('loading-message').remove();
                     
                     // Add AI response to chat
                     addMessage(data.response, 'Assistant');
@@ -408,8 +389,8 @@
                 } catch (error) {
                     console.error('Error:', error);
                     
-                    // Hide typing indicator
-                    hideTypingIndicator();
+                    // Remove loading message
+                    document.getElementById('loading-message').remove();
                     
                     // Add error message
                     addMessage('Sorry, there was an error processing your request.', 'Assistant');

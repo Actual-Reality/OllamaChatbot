@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 import requests
 import json
+import os
 
 app = Flask(__name__)
 
@@ -16,9 +17,22 @@ SYSTEM_PROMPTS = {
     "healthcare": "You are a healthcare assistant providing general health information (with appropriate disclaimers)."
 }
 
+# Define our template versions to demonstrate progression
+TEMPLATE_VERSIONS = {
+    "v1": "index_v1.html",  # Basic chat
+    "v2": "index_v2.html",  # With personas
+    "v3": "index_v3.html"   # With personas and model switching
+}
+
+# Current active version (default to the latest)
+current_version = "v3"
+
 @app.route('/')
 def index():
-    # Get list of available models from Ollama
+    global current_version
+    template = TEMPLATE_VERSIONS[current_version]
+    
+    # Get list of available models from Ollama (for v3)
     try:
         response = requests.get(OLLAMA_LIST_URL)
         models = [model['name'] for model in response.json()['models']]
@@ -26,9 +40,18 @@ def index():
         # Fallback if we can't get the list
         models = ["mistral", "llama2", "codellama"]
     
-    return render_template('index.html', 
+    return render_template(template, 
                           personas=list(SYSTEM_PROMPTS.keys()),
-                          models=models)
+                          models=models,
+                          versions=list(TEMPLATE_VERSIONS.keys()),
+                          current_version=current_version)
+
+@app.route('/switch/<version>')
+def switch_version(version):
+    global current_version
+    if version in TEMPLATE_VERSIONS:
+        current_version = version
+    return redirect(url_for('index'))
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -76,4 +99,7 @@ def chat():
         }), 500
 
 if __name__ == '__main__':
+    # Create templates directory if it doesn't exist
+    if not os.path.exists('templates'):
+        os.makedirs('templates')
     app.run(debug=True)
