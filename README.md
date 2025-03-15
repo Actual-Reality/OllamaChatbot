@@ -58,7 +58,7 @@ You can also try other models like `llama2`, `codellama`, or specialized models.
 Clone this repository or download the files:
 
 ```bash
-git clone https://github.com/yourusername/ollama-chat.git
+git clone https://github.com/Actual-Reality/OllamaChatbot.git
 cd ollama-chat
 ```
 
